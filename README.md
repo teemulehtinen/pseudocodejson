@@ -2,6 +2,8 @@
 
 JSON schema that can represent simple computer programs independent from any complete programming language. Tooling is designed to transform simple and restricted programs from e.g. Python and Java into a JSON data structure and vice versa.
 
+[Diagram](pseudocodejson.svg)
+
 #### Limitations
 
 Implementations may severely limit the program language features that are supported. This issue is tolerable in a use-case such as introductory programming education.
