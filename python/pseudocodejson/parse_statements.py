@@ -11,26 +11,26 @@ def parse_statements(state, stmt):
 
   for s in stmt:
     u.require_stmt(s)
-    type = u.node_type(s)
+    stmt_type = u.node_type(s)
 
-    if type == 'FunctionDef':
+    if stmt_type == 'FunctionDef':
       function_defs.append([
         state.add_procedure(s.name, DEFAULT_TYPE, parse_args(state, s.args)),
         s.body
       ])
 
-    elif type == 'Return':
+    elif stmt_type == 'Return':
       json.append(p.return_statement(parse_expression(state, s.value) if s.value else None))
 
-    elif type == 'Assign':
+    elif stmt_type == 'Assign':
       value_exp = parse_expression(state, s.value)
       if len(s.targets) > 1:
         #u.print_tree(s)
         # TODO test and unpack value to separate assignments
         u.unsupported_error(s, 'unpacking assignment')
       for target in s.targets:
-        type = u.node_type(target)
-        if type == 'Subscript':
+        stmt_type = u.node_type(target)
+        if stmt_type == 'Subscript':
           expr = parse_expression(state, target)
           json.append(p.array_assignment_statement(
             expr['target']['variable'],
@@ -41,14 +41,14 @@ def parse_statements(state, stmt):
           uuid = parse_target_uuid(state, json, target)
           json.append(p.assignment_statement(uuid, value_exp))
 
-    elif type == 'If':
+    elif stmt_type == 'If':
       json.append(p.selection_statement(
         parse_expression(state, s.test),
         parse_statements(state, s.body),
         parse_statements(state, s.orelse)
       ))
 
-    elif type == 'While':
+    elif stmt_type == 'While':
       if len(s.orelse) > 0:
         u.unsupported_error(s, "else-block in 'While'")
       json.append(p.loop_statement(
@@ -56,7 +56,7 @@ def parse_statements(state, stmt):
         parse_statements(state, s.body)
       ))
     
-    elif type == 'For':
+    elif stmt_type == 'For':
       if len(s.orelse) > 0:
         u.unsupported_error(s, "else-block in 'For'")
       uuid = parse_target_uuid(state, json, s.target)
@@ -85,8 +85,8 @@ def parse_statements(state, stmt):
       else:
         u.unsupported_error(s, "for (only 'in range' is supported)")
 
-    elif type == 'Expr':
-      e = parse_expression(s.value)
+    elif stmt_type == 'Expr':
+      e = parse_expression(state, s.value)
       if e['Expression'] != 'Call':
         u.unsupported_error(s, "expression statement (only 'Call' is supported)")
       if 'call' in e:
@@ -94,7 +94,7 @@ def parse_statements(state, stmt):
       else:
         u.unsupported_error(s, "builtin function '{}'".format(e['builtin']))
 
-    elif not type in IGNORE_NODES:
+    elif not stmt_type in IGNORE_NODES:
       u.unsupported_error(s)
   
   # Python naming is single-pass when function bodies are parsed after parent.

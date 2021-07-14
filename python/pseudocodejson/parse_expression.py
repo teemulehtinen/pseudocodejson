@@ -22,15 +22,15 @@ OP_TABLE = {
 
 def parse_expression(state, expr):
   u.require_expr(expr)
-  type = u.node_type(expr)
+  expr_type = u.node_type(expr)
 
-  if type == 'Name':
+  if expr_type == 'Name':
     hit = state.find_variable_id(expr, expr.id, u.node_type(expr.ctx) != 'Store')
     if hit:
       return p.variable_expression(hit['uuid'])
     raise u.MissingNameError(expr.id)
 
-  elif type == 'Call':
+  elif expr_type == 'Call':
     u.require_type(expr.func, 'Name')
     hit = state.find_function_id(expr.func, expr.func.id, True)
     args = [parse_expression(state, a) for a in expr.args]
@@ -45,13 +45,16 @@ def parse_expression(state, expr):
         return p.call_builtin_expression(expr.func.id, args)
     raise u.MissingNameError(expr.func.id)
 
-  elif type == 'NameConstant':
-    return p.literal_expression('unknown', expr.value)
+  elif expr_type == 'NameConstant':
+    if type(expr.value) == bool:
+      return p.literal_expression('boolean', expr.value)
+    else:
+      u.unsupported_error(expr, "literal '{}'".format(expr.value))
 
-  elif type == 'Num':
+  elif expr_type == 'Num':
     return p.literal_expression('int', expr.n)
 
-  elif type == 'BinOp':
+  elif expr_type == 'BinOp':
     op = u.node_type(expr.op)
     if op in OP_TABLE:
       return p.binary_operation(
@@ -61,7 +64,7 @@ def parse_expression(state, expr):
       )
     u.unsupported_error(expr, "operation '{}'".format(op))
 
-  elif type == 'Compare':
+  elif expr_type == 'Compare':
     if len(expr.ops) > 1:
       #TODO refactor a < b < c into a < b and b < c
       u.unsupported_error(expr, "chained comparison")
@@ -74,7 +77,7 @@ def parse_expression(state, expr):
       )
     u.unsupported_error(expr, "operation '{}'".format(op))
 
-  elif type == 'Subscript':
+  elif expr_type == 'Subscript':
     u.require_type(expr.value, 'Name')
     u.require_type(expr.slice, 'Index')
     return p.array_element_expression(
@@ -82,7 +85,7 @@ def parse_expression(state, expr):
       parse_expression(state, expr.slice.value)
     )
 
-  elif not type in IGNORE_NODES:
+  elif not expr_type in IGNORE_NODES:
     raise u.unsupported_error(expr)
 
 # expr = BoolOp(boolop op, expr* values)

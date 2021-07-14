@@ -10,7 +10,7 @@ class TestSamples(unittest.TestCase):
 def sample(a):
   return 2*a
     
-#sample(2)
+sample(2)
 """)
     print(json.dumps(pseudo, indent=2))
 
