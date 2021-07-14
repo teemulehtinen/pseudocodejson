@@ -10,32 +10,27 @@ def node_line(node):
 def as_list(value):
   return value if isinstance(value, list) else [value]
 
-def require_type(type, accept):
+def parse_error(node, error):
+  raise ParseError("{} at line {:d}".format(error, node_line(node)))
+
+def unsupported_error(node, unsupported_feature=None):
+  raise ParseUnsupportedError("Unsupported {} at line {:d}".format(
+    unsupported_feature if unsupported_feature else "'{}'".format(node_type(node)),
+    node_line(node)
+  ))
+
+def require_type(node, accept):
+  type = node_type(node)
   if not type in as_list(accept):
-    raise ParseError("Expected '{}' type, got '{}'".format(
-      as_list(accept).join("'/'"),
-      type)
-    )
+    parse_error(node, "Expected '{}' type, got '{}'".format("'/'".join(as_list(accept)), type))
 
 def require_stmt(node):
   if not isinstance(node, ast.stmt):
-    raise ParseError("Expected statement, got '{}' at line {:d}".format(
-      node_type(node),
-      node_line(node)
-    ))
+    parse_error(node, "Expected statement, got '{}'".format(node_type(node)))
 
 def require_expr(node):
   if not isinstance(node, ast.expr):
-    raise ParseError("Expected expression, got '{}' at line {:d}".format(
-      node_type(node),
-      node_line(node)
-    ))
-
-def unsupported_error(node):
-  raise ParseUnsupportedError("Unsupported '{}' at line {:d}".format(
-    node_type(node),
-    node_line(node)
-  ))
+    parse_error(node, "Expected expression, got '{}'".format(node_type(node)))
 
 def print_node(node):
   print(node_line(node), node_type(node), node._fields)
@@ -44,10 +39,15 @@ def print_tree(node):
   print(ast.dump(node))
 
 def uuid():
-  return makeuuid.uuid4()
+  return str(makeuuid.uuid4())
 
 class ParseError(Exception):
   pass
 
 class ParseUnsupportedError(Exception):
   pass
+
+class MissingNameError(Exception):
+  def __init__(self, id):
+    super().__init__("Missing name '{}'".format(id))
+    self.id = id

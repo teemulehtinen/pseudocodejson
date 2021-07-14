@@ -3,8 +3,7 @@ from .ParseState import ParseState
 from . import parse_utils as u
 
 def parse_module(module):
-  type = u.node_type(module)
-  u.require_type(type, 'Module')
+  u.require_type(module, 'Module')
 
   state = ParseState()
   module_stmt = parse_statements(state, module.body)
