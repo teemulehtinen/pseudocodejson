@@ -1,11 +1,11 @@
 import unittest
 import json
-from pseudocodejson import src2json
+from pseudocodejson import src2pseudo
 
 class TestSamples(unittest.TestCase):
 
   def test_function(self):
-    pseudo = src2json(
+    pseudo = src2pseudo(
 """
 def sample(a):
   return 2*a
@@ -15,7 +15,7 @@ sample(2)
     print(json.dumps(pseudo, indent=2))
 
   def test_bubblesort(self):
-    pseudo = src2json(
+    pseudo = src2pseudo(
 """
 def bubblesort(a):
   changes = True
