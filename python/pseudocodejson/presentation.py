@@ -65,6 +65,12 @@ def variable_expression(uuid):
     'variable': uuid,
   }
 
+def builtin_variable_expression(id):
+  return {
+    'Expression': 'Variable',
+    'builtin': id,
+  }
+
 def call_expression(uuid, args):
   return {
     'Expression': 'Call',
@@ -105,4 +111,11 @@ def binary_operation(op, left, right):
     'op': op,
     'left': left,
     'right': right,
+  }
+
+def unary_operation(op, expression):
+  return {
+    'Expression': 'Unary Op',
+    'op': op,
+    'expression': expression,
   }

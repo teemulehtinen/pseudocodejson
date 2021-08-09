@@ -87,12 +87,17 @@ def parse_statements(state, stmt):
 
     elif stmt_type == 'Expr':
       e = parse_expression(state, s.value)
-      if e['Expression'] != 'Call':
-        u.unsupported_error(s, "expression statement (only 'Call' is supported)")
-      if 'call' in e:
-        json.append(e['call'])
+      u.print_tree(s)
+      if e['Expression'] == 'Call':
+        if 'call' in e:
+          json.append(e['call'])
+        else:
+          u.unsupported_error(s, "builtin function '{}'".format(e['builtin']))
+      elif e['Expression'] == 'Literal' and e['type'] == 'string':
+        # A comment, skip
+        pass
       else:
-        u.unsupported_error(s, "builtin function '{}'".format(e['builtin']))
+        u.unsupported_error(s, "expression '{}' as statement".format(e['Expression']))
 
     elif not stmt_type in IGNORE_NODES:
       u.unsupported_error(s)

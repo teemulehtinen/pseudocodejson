@@ -2,6 +2,9 @@ from . import parse_utils as u
 from . import presentation as p
 
 IGNORE_NODES = []
+BUILT_IN_VARIABLES = [
+  '__name__'
+]
 BUILT_IN_FUNCTIONS = [
   'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'breakpoint', 'bytearray', 'bytes',
   'callable', 'chr', 'classmethod', 'compile', 'complex', 'delattr', 'dict', 'dir',
@@ -18,7 +21,9 @@ OP_TABLE = {
   'Add': 'add', 'Sub': 'sub', 'Mult': 'mul', 'Div': 'div', 'Mod': 'mod',
   'Eq': 'equal',  'NotEq': 'different',
   'Gt': 'greater', 'GtE': 'greater_eq', 'Lt': 'smaller', 'LtE': 'smaller_eq',
+  'Invert': 'minus', 'Not': 'not',
 }
+
 
 def parse_expression(state, expr):
   u.require_expr(expr)
@@ -28,6 +33,8 @@ def parse_expression(state, expr):
     hit = state.find_variable_id(expr, expr.id, u.node_type(expr.ctx) != 'Store')
     if hit:
       return p.variable_expression(hit['uuid'])
+    if expr.id in BUILT_IN_VARIABLES:
+      return p.builtin_variable_expression(expr.id)
     raise u.MissingNameError(expr.id)
 
   elif expr_type == 'Call':
@@ -53,6 +60,9 @@ def parse_expression(state, expr):
 
   elif expr_type == 'Num':
     return p.literal_expression('int', expr.n)
+  
+  elif expr_type == 'Str':
+    return p.literal_expression('string', expr.s)
 
   elif expr_type == 'BinOp':
     op = u.node_type(expr.op)
@@ -76,6 +86,15 @@ def parse_expression(state, expr):
         parse_expression(state, expr.comparators[0])
       )
     u.unsupported_error(expr, "operation '{}'".format(op))
+  
+  elif expr_type == 'UnaryOp':
+    op = u.node_type(expr.op)
+    if op in OP_TABLE:
+      return p.unary_operation(
+        OP_TABLE[op],
+        parse_expression(state, expr.operand)
+      )
+    raise u.unsupported_error(expr, "operation '{}'".format(op))
 
   elif expr_type == 'Subscript':
     u.require_type(expr.value, 'Name')
