@@ -14,8 +14,5 @@ Targeting this programming language independent format allows to develop program
 
 ## TODO
 
-* Implement Python to pseudocodejson
-* Implement pseudocodejson to paddle
-* Implement paddle to pseudocodejson
 * Add to pypi https://packaging.python.org/tutorials/packaging-projects/
 * Define JSON Schema https://json-schema.org/
