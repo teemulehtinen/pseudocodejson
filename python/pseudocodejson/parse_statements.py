@@ -33,7 +33,7 @@ def parse_statements(state, stmt):
         if stmt_type == 'Subscript':
           expr = parse_expression(state, target)
           json.append(p.array_assignment_statement(
-            expr['target']['variable'],
+            expr['target'],
             expr['indexes'],
             value_exp
           ))
@@ -76,7 +76,7 @@ def parse_statements(state, stmt):
           parse_statements(state, s.body) + [p.assignment_statement(
             uuid,
             p.binary_operation(
-              'sum',
+              'add',
               p.variable_expression(uuid),
               args[2] if len(args) > 2 else p.literal_expression('int', 1)
             )

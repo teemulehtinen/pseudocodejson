@@ -51,10 +51,10 @@ def loop_statement(guard, body):
     'body': body,
   }
 
-def array_assignment_statement(uuid, indexes, expression):
+def array_assignment_statement(target, indexes, expression):
   return {
     'Statement': 'Array Assignment',
-    'target': uuid,
+    'target': target,
     'indexes': indexes,
     'expression': expression,
   }
