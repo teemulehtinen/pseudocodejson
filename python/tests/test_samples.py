@@ -24,8 +24,6 @@ def bubblesort(a):
     for i in range(1, len(a)):
       if a[i] < a[i - 1]:
         a[i], a[i - 1] = a[i - 1], a[i]
-        #a[i] = a[i - 1]
-        #a[i - 1] = a[i]
         changes = True
   return a
 """
@@ -35,9 +33,21 @@ def bubblesort(a):
   def test_extended(self):
     pseudo = src2pseudo(
 """
-a = b = 0
+a = b = None
+a = 0
+b = 10
 while True and 0 <= a <= b:
   a += 1
+"""
+    )
+    print(json.dumps(pseudo, indent=2))
+
+  def test_ignored(self):
+    pseudo = src2pseudo(
+"""
+a = 3
+b = a // 2
+print("blaa")
 """
     )
     print(json.dumps(pseudo, indent=2))

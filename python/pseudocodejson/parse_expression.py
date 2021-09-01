@@ -18,7 +18,7 @@ BUILT_IN_FUNCTIONS = [
 ]
 OP_TABLE = {
   'And': 'and', 'Or': 'or',
-  'Add': 'add', 'Sub': 'sub', 'Mult': 'mul', 'Div': 'div', 'Mod': 'mod',
+  'Add': 'add', 'Sub': 'sub', 'Mult': 'mul', 'Div': 'div', 'FloorDiv': 'div', 'Mod': 'mod',
   'Eq': 'equal',  'NotEq': 'different',
   'Gt': 'greater', 'GtE': 'greater_eq', 'Lt': 'smaller', 'LtE': 'smaller_eq',
   'Invert': 'minus', 'Not': 'not',
@@ -53,6 +53,8 @@ def parse_expression(state, expr):
     raise u.MissingNameError(expr.func.id)
 
   elif expr_type == 'NameConstant':
+    if expr.value is None:
+      return p.literal_expression('null', None)
     if type(expr.value) == bool:
       return p.literal_expression('boolean', expr.value)
     else:

@@ -3,6 +3,7 @@ from . import presentation as p
 from .parse_expression import parse_expression, OP_TABLE
 
 IGNORE_NODES = ['Delete', 'Import', 'ImportFrom', 'Assert']
+IGNORE_BUILTINS = ['print']
 DEFAULT_TYPE = 'unknown'
 
 def parse_statements(state, stmt):
@@ -89,7 +90,7 @@ def parse_statements(state, stmt):
       if e['Expression'] == 'Call':
         if 'call' in e:
           json.append(e['call'])
-        else:
+        elif not e['builtin'] in IGNORE_BUILTINS:
           u.unsupported_error(s, "builtin function '{}'".format(e['builtin']))
       elif e['Expression'] == 'Literal' and e['type'] == 'string':
         pass # Skip comment
@@ -97,7 +98,6 @@ def parse_statements(state, stmt):
         u.unsupported_error(s, "expression '{}' as statement".format(e['Expression']))
 
     elif not stmt_type in IGNORE_NODES:
-      u.print_tree(s)
       u.unsupported_error(s)
   
   # Python naming is single-pass when function bodies are parsed after parent.
