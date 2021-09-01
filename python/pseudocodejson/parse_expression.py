@@ -74,19 +74,6 @@ def parse_expression(state, expr):
       )
     u.unsupported_error(expr, "operation '{}'".format(op))
 
-  elif expr_type == 'Compare':
-    if len(expr.ops) > 1:
-      #TODO refactor a < b < c into a < b and b < c
-      u.unsupported_error(expr, "chained comparison")
-    op = u.node_type(expr.ops[0])
-    if op in OP_TABLE:
-      return p.binary_operation(
-        OP_TABLE[op],
-        parse_expression(state, expr.left),
-        parse_expression(state, expr.comparators[0])
-      )
-    u.unsupported_error(expr, "operation '{}'".format(op))
-  
   elif expr_type == 'UnaryOp':
     op = u.node_type(expr.op)
     if op in OP_TABLE:
@@ -95,6 +82,22 @@ def parse_expression(state, expr):
         parse_expression(state, expr.operand)
       )
     raise u.unsupported_error(expr, "operation '{}'".format(op))
+  
+  elif expr_type == 'BoolOp':
+    op = u.node_type(expr.op)
+    if op in OP_TABLE:
+      return build_bool_tree(
+        op,
+        [parse_expression(state, e) for e in expr.values]
+      )
+
+  elif expr_type == 'Compare':
+    return build_compare_tree(
+      expr,
+      parse_expression(state, expr.left),
+      expr.ops,
+      [parse_expression(state, e) for e in expr.comparators]
+    )
 
   elif expr_type == 'Subscript':
     u.require_type(expr.value, 'Name')
@@ -104,7 +107,11 @@ def parse_expression(state, expr):
       parse_expression(state, expr.slice.value)
     )
 
+  elif expr_type in ('List', 'Tuple'):
+    return p.literal_expression('array', list(parse_expression(state, e) for e in expr.elts))
+
   elif not expr_type in IGNORE_NODES:
+    u.print_tree(expr)
     raise u.unsupported_error(expr)
 
 # expr = BoolOp(boolop op, expr* values)
@@ -138,3 +145,21 @@ def parse_expression(state, expr):
 #   | Tuple(expr* elts, expr_context ctx)
 #
 #   | Slice(expr? lower, expr? upper, expr? step)
+
+def build_bool_tree(op, vals):
+  if len(vals) > 2:
+    return p.binary_operation(OP_TABLE[op], vals[0], build_bool_tree(op, vals[1:]))
+  return p.binary_operation(OP_TABLE[op], vals[0], vals[1])
+
+def build_compare_tree(expr, left, ops, comparators):
+  op = u.node_type(ops[0])
+  if op in OP_TABLE:
+    cmp = p.binary_operation(OP_TABLE[op], left, comparators[0])
+    if len(ops) > 1:
+      return p.binary_operation(
+        OP_TABLE['And'],
+        cmp,
+        build_compare_tree(expr, comparators[0], ops[1:], comparators[1:])
+      )
+    return cmp
+  u.unsupported_error(expr, "operation '{}'".format(op))
