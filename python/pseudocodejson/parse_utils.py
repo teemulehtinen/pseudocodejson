@@ -14,6 +14,7 @@ def parse_error(node, error):
   raise ParseError("{} at line {:d}".format(error, node_line(node)))
 
 def unsupported_error(node, unsupported_feature=None):
+  print_tree(node)
   raise ParseUnsupportedError("Unsupported {} at line {:d}".format(
     unsupported_feature if unsupported_feature else "'{}'".format(node_type(node)),
     node_line(node)
@@ -37,6 +38,15 @@ def print_node(node):
 
 def print_tree(node):
   print(ast.dump(node))
+
+def common_type(expr, types, error):
+  typ = 'unknown'
+  for t in types:
+    if typ == 'unknown':
+      typ = t
+    elif not t in (typ, 'unknown'):
+      unsupported_error(expr, error)
+  return typ
 
 def uuid():
   return str(makeuuid.uuid4())

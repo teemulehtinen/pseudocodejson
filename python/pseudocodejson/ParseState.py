@@ -7,9 +7,10 @@ class ParseState:
     self.constants = []
     self.procedures = []
     self.namestack = [{}]
+    self.variable_typing = {}
 
-  def add_procedure(self, id, type, parameters):
-    procedure = p.procedure_declaration(u.uuid(), id, type, parameters)
+  def add_procedure(self, id, typ):
+    procedure = p.procedure_declaration(u.uuid(), id, typ)
     self.procedures.append(procedure)
     if id != None:
       self.namestack[-1][id] = procedure
@@ -21,11 +22,12 @@ class ParseState:
   def pop_names(self):
     self.namestack.pop()
 
-  def add_variable(self, id, type):
-    variable = p.variable_statement(u.uuid(), id, type)
+  def add_variable(self, id, typ):
+    variable = p.variable_statement(u.uuid(), id, typ)
     self.namestack[-1][id] = variable
+    self.variable_typing[variable['uuid']] = typ
     return variable
-
+  
   def find_id(self, id, up=False, level=None):
     if level is None:
       level = len(self.namestack) - 1
@@ -46,3 +48,12 @@ class ParseState:
     if declaration and not 'body' in declaration:
       u.parse_error(node, "Expected function id, got variable id '{}".format(id))
     return declaration
+
+  def set_variable_type(self, node, uuid, typ):
+    if typ != 'unknown':
+      if not self.variable_typing.get(uuid, 'unknown') in (typ, 'unknown'):
+        u.unsupported_error(node, "multiple types for a variable")
+      self.variable_typing[uuid] = typ
+  
+  def get_variable_type(self, uuid):
+    return self.variable_typing.get(uuid, 'unknown')

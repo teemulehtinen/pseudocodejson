@@ -4,10 +4,10 @@ from .parse_expression import parse_expression, OP_TABLE
 
 IGNORE_NODES = ['Delete', 'Import', 'ImportFrom', 'Assert']
 IGNORE_BUILTINS = ['print']
-DEFAULT_TYPE = 'unknown'
 
 def parse_statements(state, stmt):
   json = []
+  return_types = []
   function_defs = []
 
   for s in stmt:
@@ -16,74 +16,76 @@ def parse_statements(state, stmt):
 
     if stmt_type == 'FunctionDef':
       function_defs.append([
-        state.add_procedure(s.name, DEFAULT_TYPE, parse_args(state, s.args)),
+        state.add_procedure(s.name, 'void'),
+        s.args,
         s.body
       ])
 
     elif stmt_type == 'Return':
-      json.append(p.return_statement(parse_expression(state, s.value) if s.value else None))
+      value = parse_expression(state, s.value) if s.value else None
+      typ = value['type'] if value else 'void'
+      json.append(p.return_statement(value, typ))
+      return_types.append(typ)
 
     elif stmt_type == 'Assign':
       value_exp = parse_expression(state, s.value)
       for target in s.targets:
         parse_assignment_target(state, json, s, target, value_exp)
-    
+
     elif stmt_type == 'AugAssign':
       op = u.node_type(s.op)
       if op in OP_TABLE:
+        val = parse_expression(state, s.value)
         value_exp = p.binary_operation(
           OP_TABLE[op],
           parse_expression(state, s.target),
-          parse_expression(state, s.value)
+          val,
+          val['type']
         )
         if not add_array_assignment(state, json, s.target, value_exp):
-          json.append(p.assignment_statement(parse_target_uuid(state, s.target), value_exp))
+          uuid = parse_target_uuid(state, s.target, value_exp['type'])
+          json.append(p.assignment_statement(uuid, value_exp))
       else:
         u.unsupported_error(s, "operation '{}'".format(op))
 
     elif stmt_type == 'If':
-      json.append(p.selection_statement(
-        parse_expression(state, s.test),
-        parse_statements(state, s.body),
-        parse_statements(state, s.orelse)
-      ))
+      cond = parse_expression(state, s.test)
+      if_body, if_typ = parse_statements(state, s.body)
+      else_body, else_typ = parse_statements(state, s.orelse)
+      json.append(p.selection_statement(cond, if_body, else_body))
+      return_types.extend([if_typ, else_typ])
 
     elif stmt_type == 'While':
       if len(s.orelse) > 0:
         u.unsupported_error(s, "else-block in 'While'")
-      json.append(p.loop_statement(
-        parse_expression(state, s.test),
-        parse_statements(state, s.body)
-      ))
-    
+      cond = parse_expression(state, s.test)
+      body, typ = parse_statements(state, s.body)
+      json.append(p.loop_statement(cond, body))
+      return_types.append(typ)
+
     elif stmt_type == 'For':
       if len(s.orelse) > 0:
-        u.unsupported_error(s, "else-block in 'For'")
-      uuid = parse_or_create_target_uuid(state, json, s.target)
+        u.unsupported_error(s, "'Else' in 'For'")
       iter = parse_expression(state, s.iter)
       if iter['Expression'] == 'Call' and iter['builtin'] == 'range':
+        uuid = parse_or_create_target_uuid(state, json, s.target, 'int')
         args = iter['arguments']
-        json.append(p.assignment_statement(
-          uuid,
-          args[0] if len(args) > 1 else p.literal_expression('int', 0)
-        ))
+        begin = args[0] if len(args) > 1 else p.literal_expression('int', 0)
+        end = args[1 if len(args) > 1 else 0]
+        step = args[2] if len(args) > 2 else p.literal_expression('int', 1)
+        body, typ = parse_statements(state, s.body)
+        json.append(p.assignment_statement(uuid, begin))
         json.append(p.loop_statement(
-          p.binary_operation(
-            'different',
-            p.variable_expression(uuid),
-            args[1 if len(args) > 1 else 0]
-          ),
-          parse_statements(state, s.body) + [p.assignment_statement(
-            uuid,
-            p.binary_operation(
-              'add',
-              p.variable_expression(uuid),
-              args[2] if len(args) > 2 else p.literal_expression('int', 1)
+          p.binary_operation('different', p.variable_expression(uuid, 'int'), end, 'boolean'),
+          body + [
+            p.assignment_statement(
+              uuid,
+              p.binary_operation('add', p.variable_expression(uuid, 'int'), step, 'int')
             )
-          )]
+          ]
         ))
       else:
-        u.unsupported_error(s, "for (only 'in range' is supported)")
+        u.unsupported_error(s, "for iterable (only 'range' is supported)")
 
     elif stmt_type == 'Expr':
       e = parse_expression(state, s.value)
@@ -101,12 +103,16 @@ def parse_statements(state, stmt):
       u.unsupported_error(s)
   
   # Python naming is single-pass when function bodies are parsed after parent.
-  for fdef,fstmt in function_defs:
+  for fdef, fargs, fstmt in function_defs:
     state.push_names()
-    fdef['body'].extend(parse_statements(state, fstmt))
+    fdef['parameters'] = parse_args(state, fargs)
+    body, typ = parse_statements(state, fstmt)
+    fdef['body'].extend(body)
+    fdef['type'] = typ
     state.pop_names()
 
-  return json
+  typ = u.common_type(stmt, return_types, 'multiple return types for a function')
+  return json, typ
 
 # stmt = FunctionDef(identifier name, arguments args, stmt* body, expr* decorator_list, expr? returns, string? type_comment)
 #   | AsyncFunctionDef(identifier name, arguments args, stmt* body, expr* decorator_list, expr? returns, string? type_comment)
@@ -138,40 +144,51 @@ def parse_statements(state, stmt):
 #   | Pass | Break | Continue
 
 def parse_args(state, args):
-  return [state.add_variable(a.arg, DEFAULT_TYPE) for a in args.args]
+  return [state.add_variable(a.arg, 'unknown') for a in args.args]
 
 # arguments = (arg* posonlyargs, arg* args, arg? vararg, arg* kwonlyargs, expr* kw_defaults, arg? kwarg, expr* defaults)
 # arg = (identifier arg, expr? annotation, string? type_comment)
 
 def parse_assignment_target(state, json, stmt, target, value_exp):
   if u.node_type(target) in ('Tuple', 'List'):
-    if value_exp['Expression'] != 'Literal' or value_exp['type'] != 'array':
+    if value_exp['Expression'] != 'Literal' or not value_exp['type'].endswith('[]'):
       u.unsupported_error(stmt, 'assignment of {} to tuple'.format(value_exp['Expression']))
     target_n = len(target.elts)
     value_n = len(value_exp['value'])
     if target_n != value_n:
       u.unsupported_error(stmt, 'assignment of length {} to tuple of length {}'.format(value_n, target_n))
     for i in range(target_n):
+      # TODO fix with temporary variables
       parse_assignment_target(state, json, stmt, target.elts[i], value_exp['value'][i])
   elif not add_array_assignment(state, json, target, value_exp):
-    uuid = parse_or_create_target_uuid(state, json, target)
+    uuid = parse_or_create_target_uuid(state, json, target, value_exp['type'])
     json.append(p.assignment_statement(uuid, value_exp))
 
 def add_array_assignment(state, json, target, value_exp):
-  if u.node_type(target) == 'Subscript':
-    arr = parse_expression(state, target)
-    json.append(p.array_assignment_statement(arr['target'], arr['indexes'], value_exp))
-    return True
-  return False
+  if u.node_type(target) != 'Subscript':
+    return False
+  arr = parse_expression(state, target)
+  if arr['Expression'] == 'Call':
+    u.unsupported_error(target, 'assignment to array slice')
+  if 'builtin' in arr['target']:
+    u.unsupported_error(target, 'assignment to builtin')
+  typ = p.array_type(value_exp['type'])
+  state.set_variable_type(target, arr['target']['variable'], typ)
+  arr['target']['type'] = typ
+  json.append(p.array_assignment_statement(arr['target'], arr['indexes'], value_exp))
+  return True
 
-def parse_target_uuid(state, target):
+def parse_target_uuid(state, target, typ):
   u.require_type(target, 'Name')
-  return parse_expression(state, target)['variable']
+  var = parse_expression(state, target)
+  state.set_variable_type(target, var['variable'], typ)
+  var['type'] = typ
+  return var['variable']
 
-def parse_or_create_target_uuid(state, json, target):
+def parse_or_create_target_uuid(state, json, target, typ):
   try:
-    return parse_target_uuid(state, target)
+    return parse_target_uuid(state, target, typ)
   except u.MissingNameError as error:
-    declaration = state.add_variable(error.id, DEFAULT_TYPE)
-    json.append(declaration)
-    return declaration['uuid']
+    var = state.add_variable(error.id, typ)
+    json.append(var)
+    return var['uuid']

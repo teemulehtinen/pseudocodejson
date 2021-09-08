@@ -6,9 +6,9 @@ def parse_module(module):
   u.require_type(module, 'Module')
 
   state = ParseState()
-  module_stmt = parse_statements(state, module.body)
+  module_stmt, _ = parse_statements(state, module.body)
   if (len(module_stmt) > 0):
-    default = state.add_procedure(None, None, [])
+    default = state.add_procedure(None, 'void')
     default['body'].extend(module_stmt)
 
   return {

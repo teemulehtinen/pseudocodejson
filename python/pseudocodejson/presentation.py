@@ -1,9 +1,9 @@
-def procedure_declaration(uuid, id, type, parameters):
+def procedure_declaration(uuid, id, type):
   return {
     'uuid': uuid,
     'id': id,
     'type': type,
-    'parameters': parameters,
+    'parameters': [],
     'body': [],
   }
 
@@ -23,10 +23,11 @@ def call_statement(uuid, args):
     'arguments': args,
   }
 
-def return_statement(expression=None):
+def return_statement(expression, typ):
   return {
     'Statement': 'Return',
     'expression': expression,
+    'type': typ,
   }
 
 def assignment_statement(uuid, expression):
@@ -59,29 +60,33 @@ def array_assignment_statement(target, indexes, expression):
     'expression': expression,
   }
 
-def variable_expression(uuid):
+def variable_expression(uuid, typ):
   return {
     'Expression': 'Variable',
     'variable': uuid,
+    'type': typ,
   }
 
-def builtin_variable_expression(id):
+def builtin_variable_expression(id, typ):
   return {
     'Expression': 'Variable',
     'builtin': id,
+    'type': typ,
   }
 
-def call_expression(uuid, args):
+def call_expression(uuid, typ, args):
   return {
     'Expression': 'Call',
     'call': call_statement(uuid, args),
+    'type': typ,
   }
 
-def call_builtin_expression(id, args):
+def call_builtin_expression(id, typ, args):
   return {
     'Expression': 'Call',
     'builtin': id,
     'arguments': args,
+    'type': typ,
   }
 
 def array_length_expression(target):
@@ -89,13 +94,15 @@ def array_length_expression(target):
     'Expression': 'Array Length',
     'target': target,
     'indexes': [],
+    'type': 'int',
   }
 
-def array_element_expression(target, index):
+def array_element_expression(target, index, typ):
   return {
     'Expression': 'Array Element',
     'target': target,
-    'indexes': [index]
+    'indexes': [index],
+    'type': typ,
   }
 
 def literal_expression(type, value):
@@ -105,17 +112,27 @@ def literal_expression(type, value):
     'value': value,
   }
 
-def binary_operation(op, left, right):
+def binary_operation(op, left, right, typ):
   return {
     'Expression': 'Binary Op',
     'op': op,
     'left': left,
     'right': right,
+    'type': typ,
   }
 
-def unary_operation(op, expression):
+def unary_operation(op, expression, typ):
   return {
     'Expression': 'Unary Op',
     'op': op,
     'expression': expression,
+    'type': typ,
   }
+
+def array_type(typ):
+  return typ + '[]'
+
+def unarray_type(typ):
+  if typ.endswith('[]'):
+    return typ[:-2]
+  return 'unknown'

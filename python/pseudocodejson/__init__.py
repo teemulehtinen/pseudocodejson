@@ -3,6 +3,7 @@ import json
 from .parse_module import parse_module
 from .parse_statements import parse_statements
 from .parse_expression import parse_expression
+from .parse_utils import ParseError, ParseUnsupportedError, MissingNameError
 
 VERSION_STRING = "1.0.0"
 
