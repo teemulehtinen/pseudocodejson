@@ -37,6 +37,14 @@ def assignment_statement(uuid, expression):
     'expression': expression,
   }
 
+def array_assignment_statement(target, indexes, expression):
+  return {
+    'Statement': 'Array Assignment',
+    'target': target,
+    'indexes': indexes,
+    'expression': expression,
+  }
+
 def selection_statement(guard, body, alternative):
   return {
     'Statement': 'Selection',
@@ -52,12 +60,14 @@ def loop_statement(guard, body):
     'body': body,
   }
 
-def array_assignment_statement(target, indexes, expression):
+def break_statement():
   return {
-    'Statement': 'Array Assignment',
-    'target': target,
-    'indexes': indexes,
-    'expression': expression,
+    'Statement': 'Break',
+  }
+
+def continue_statement():
+  return {
+    'Statement': 'Continue',
   }
 
 def variable_expression(uuid, typ):
@@ -132,7 +142,10 @@ def unary_operation(op, expression, typ):
 def array_type(typ):
   return typ + '[]'
 
+def is_array_type(typ):
+  return typ.endswith('[]')
+
 def unarray_type(typ):
-  if typ.endswith('[]'):
+  if is_array_type(typ):
     return typ[:-2]
   return 'unknown'

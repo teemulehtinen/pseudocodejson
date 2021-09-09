@@ -14,7 +14,7 @@ BUILT_IN_FUNCTIONS = [
   '__import__', 'NotImplementedError'
 ]
 BUILT_IN_VARIABLES = {
-  '__name__': 'string'
+  '__name__': 'string', 'int': 'type', 'float': 'type', 'str': 'type'
 }
 OP_TABLE = {
   'And': 'and', 'Or': 'or',
@@ -38,20 +38,34 @@ def parse_expression(state, expr):
     raise u.MissingNameError(expr.id)
 
   elif expr_type == 'Call':
-    u.require_type(expr.func, 'Name')
-    hit = state.find_function_id(expr.func, expr.func.id, True)
+    func_type = u.node_type(expr.func)
     args = [parse_expression(state, a) for a in expr.args]
-    if hit:
-      return p.call_expression(hit['uuid'], hit['type'], args)
-    if expr.func.id in BUILT_IN_FUNCTIONS:
-      if expr.func.id == 'len':
-        if len(expr.args) != 1:
-          u.parse_error(expr, 'Expected exactly one argument')
-        return p.array_length_expression(args[0])
-      else:
-        # TODO determine possible types for builtins
-        return p.call_builtin_expression(expr.func.id, 'unknown', args)
-    raise u.MissingNameError(expr.func.id)
+    if func_type == 'Attribute':
+      val = parse_expression(state, expr.func.value)
+      if val['Expression'] == 'Literal':
+        if val['type'] == 'string' and expr.func.attr == 'format':
+          return p.call_builtin_expression('string_format', 'string', [val['value']] + args)
+        else:
+          u.unsupported_error(expr.func, "method call '{}.{}'".format(val['type'], expr.func.attr))
+      elif val['Expression'] == 'Variable':
+        if p.is_array_type(val['type']) and expr.func.attr == 'append':
+          return p.call_builtin_expression('array_grow', val['type'], [val['variable']] + args)
+        u.unsupported_error(expr.func, "method call '{}.{}'".format(expr.func.value.id, expr.func.attr))
+    elif func_type == 'Name':
+      hit = state.find_function_id(expr.func, expr.func.id, True)
+      if hit:
+        return p.call_expression(hit['uuid'], hit['type'], args)
+      elif expr.func.id in BUILT_IN_FUNCTIONS:
+        if expr.func.id == 'len':
+          if len(expr.args) != 1:
+            u.parse_error(expr, 'Expected exactly one argument')
+          return p.array_length_expression(args[0])
+        else:
+          # TODO determine possible types for builtins
+          return p.call_builtin_expression(expr.func.id, 'unknown', args)
+      raise u.MissingNameError(expr.func.id)
+    else:
+      u.unsupported_error(expr.func, "call of '{}'".format(func_type))
 
   elif expr_type == 'NameConstant':
     if expr.value is None:

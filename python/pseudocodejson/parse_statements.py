@@ -2,7 +2,7 @@ from . import parse_utils as u
 from . import presentation as p
 from .parse_expression import parse_expression, OP_TABLE
 
-IGNORE_NODES = ['Delete', 'Import', 'ImportFrom', 'Assert']
+IGNORE_NODES = ['Pass', 'Delete', 'Import', 'ImportFrom', 'Assert', 'Raise']
 IGNORE_BUILTINS = ['print']
 
 def parse_statements(state, stmt):
@@ -87,6 +87,12 @@ def parse_statements(state, stmt):
       else:
         u.unsupported_error(s, "for iterable (only 'range' is supported)")
 
+    elif stmt_type == 'Break':
+      json.append(p.break_statement())
+    
+    elif stmt_type == 'Continue':
+      json.append(p.continue_statement())
+
     elif stmt_type == 'Expr':
       e = parse_expression(state, s.value)
       if e['Expression'] == 'Call':
@@ -151,7 +157,7 @@ def parse_args(state, args):
 
 def parse_assignment_target(state, json, stmt, target, value_exp):
   if u.node_type(target) in ('Tuple', 'List'):
-    if value_exp['Expression'] != 'Literal' or not value_exp['type'].endswith('[]'):
+    if value_exp['Expression'] != 'Literal' or not p.is_array_type(value_exp['type']):
       u.unsupported_error(stmt, 'assignment of {} to tuple'.format(value_exp['Expression']))
     target_n = len(target.elts)
     value_n = len(value_exp['value'])

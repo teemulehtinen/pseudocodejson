@@ -14,7 +14,7 @@ def parse_error(node, error):
   raise ParseError("{} at line {:d}".format(error, node_line(node)))
 
 def unsupported_error(node, unsupported_feature=None):
-  print_tree(node)
+  #print_tree(node)
   raise ParseUnsupportedError("Unsupported {} at line {:d}".format(
     unsupported_feature if unsupported_feature else "'{}'".format(node_type(node)),
     node_line(node)
