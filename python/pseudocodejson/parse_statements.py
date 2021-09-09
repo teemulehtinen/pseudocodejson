@@ -16,7 +16,7 @@ def parse_statements(state, stmt):
 
     if stmt_type == 'FunctionDef':
       function_defs.append([
-        state.add_procedure(s.name, 'void'),
+        state.add_procedure(s.name),
         s.args,
         s.body
       ])
@@ -111,14 +111,16 @@ def parse_statements(state, stmt):
   # Python naming is single-pass when function bodies are parsed after parent.
   for fdef, fargs, fstmt in function_defs:
     state.push_names()
-    fdef['parameters'] = parse_args(state, fargs)
+    fdef['parameters'] = parse_args(state, fdef['id'], fargs)
     body, typ = parse_statements(state, fstmt)
     fdef['body'].extend(body)
-    fdef['type'] = typ
+    if fdef['type'] == 'unknown':
+      fdef['type'] = typ
     state.pop_names()
 
-  typ = u.common_type(stmt, return_types, 'multiple return types for a function')
-  return json, typ
+  if return_types:
+    return json, u.common_type(stmt, return_types, 'multiple return types for a function')
+  return json, 'void'
 
 # stmt = FunctionDef(identifier name, arguments args, stmt* body, expr* decorator_list, expr? returns, string? type_comment)
 #   | AsyncFunctionDef(identifier name, arguments args, stmt* body, expr* decorator_list, expr? returns, string? type_comment)
@@ -149,8 +151,8 @@ def parse_statements(state, stmt):
 #   | Expr(expr value)
 #   | Pass | Break | Continue
 
-def parse_args(state, args):
-  return [state.add_variable(a.arg, 'unknown') for a in args.args]
+def parse_args(state, fid, args):
+  return [state.add_variable(a.arg, None, fid, i) for i, a in enumerate(args.args)]
 
 # arguments = (arg* posonlyargs, arg* args, arg? vararg, arg* kwonlyargs, expr* kw_defaults, arg? kwarg, expr* defaults)
 # arg = (identifier arg, expr? annotation, string? type_comment)

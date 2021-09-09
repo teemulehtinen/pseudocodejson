@@ -2,10 +2,10 @@ from .parse_statements import parse_statements
 from .ParseState import ParseState
 from . import parse_utils as u
 
-def parse_module(module):
+def parse_module(module, typed_signatures=None):
   u.require_type(module, 'Module')
 
-  state = ParseState()
+  state = ParseState(typed_signatures)
   module_stmt, _ = parse_statements(state, module.body)
   if (len(module_stmt) > 0):
     default = state.add_procedure(None, 'void')
