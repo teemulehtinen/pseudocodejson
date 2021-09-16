@@ -1,6 +1,11 @@
 from .parse_statements import parse_statements
 from .ParseState import ParseState
+from . import presentation as p
 from . import parse_utils as u
+
+# TODO
+# 1. option to exclude procedures
+# 2. option to fail lists
 
 def parse_module(module, typed_signatures=None):
   u.require_type(module, 'Module')
@@ -14,8 +19,8 @@ def parse_module(module, typed_signatures=None):
   return {
     'type': 'Module',
     'id': None,
-    'constants': state.constants,
-    'procedures': state.procedures,
+    'constants': p.finalize(state.constants),
+    'procedures': p.finalize(state.procedures),
   }
 
 # mod = Module(stmt* body, type_ignore* type_ignores)

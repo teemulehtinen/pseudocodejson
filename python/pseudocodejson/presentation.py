@@ -1,10 +1,12 @@
 def procedure_declaration(uuid, id, type):
   return {
+    'Statement': 'Procedure',
     'uuid': uuid,
     'id': id,
     'type': type,
     'parameters': [],
     'body': [],
+    '_children': ['parameters', 'body'],
   }
 
 def variable_statement(uuid, id, type):
@@ -13,7 +15,6 @@ def variable_statement(uuid, id, type):
     'uuid': uuid,
     'id': id,
     'type': type,
-    #'array': false,
   }
 
 def call_statement(uuid, args):
@@ -21,6 +22,7 @@ def call_statement(uuid, args):
     'Statement': 'Call',
     'procedure': uuid,
     'arguments': args,
+    '_children': ['arguments'],
   }
 
 def return_statement(expression, typ):
@@ -28,6 +30,7 @@ def return_statement(expression, typ):
     'Statement': 'Return',
     'expression': expression,
     'type': typ,
+    '_children': ['expression'],
   }
 
 def assignment_statement(uuid, expression):
@@ -35,6 +38,7 @@ def assignment_statement(uuid, expression):
     'Statement': 'Assignment',
     'variable': uuid,
     'expression': expression,
+    '_children': ['expression'],
   }
 
 def array_assignment_statement(target, indexes, expression):
@@ -43,6 +47,7 @@ def array_assignment_statement(target, indexes, expression):
     'target': target,
     'indexes': indexes,
     'expression': expression,
+    '_children': ['target', 'indexes', 'expression'],
   }
 
 def selection_statement(guard, body, alternative):
@@ -51,6 +56,7 @@ def selection_statement(guard, body, alternative):
     'guard': guard,
     'body': body,
     'alternative': alternative,
+    '_children': ['guard', 'body', 'alternative'],
   }
 
 def loop_statement(guard, body):
@@ -58,6 +64,7 @@ def loop_statement(guard, body):
     'Statement': 'Loop',
     'guard': guard,
     'body': body,
+    '_children': ['guard', 'body'],
   }
 
 def break_statement():
@@ -89,6 +96,7 @@ def call_expression(uuid, typ, args):
     'Expression': 'Call',
     'call': call_statement(uuid, args),
     'type': typ,
+    '_children': ['call'],
   }
 
 def call_builtin_expression(id, typ, args):
@@ -97,6 +105,7 @@ def call_builtin_expression(id, typ, args):
     'builtin': id,
     'arguments': args,
     'type': typ,
+    '_children': ['arguments'],
   }
 
 def array_length_expression(target):
@@ -105,6 +114,7 @@ def array_length_expression(target):
     'target': target,
     'indexes': [],
     'type': 'int',
+    '_children': ['target', 'indexes'],
   }
 
 def array_element_expression(target, index, typ):
@@ -113,6 +123,7 @@ def array_element_expression(target, index, typ):
     'target': target,
     'indexes': [index],
     'type': typ,
+    '_children': ['target', 'indexes'],
   }
 
 def literal_expression(type, value):
@@ -129,6 +140,7 @@ def binary_operation(op, left, right, typ):
     'left': left,
     'right': right,
     'type': typ,
+    '_children': ['left', 'right'],
   }
 
 def unary_operation(op, expression, typ):
@@ -137,6 +149,7 @@ def unary_operation(op, expression, typ):
     'op': op,
     'expression': expression,
     'type': typ,
+    '_children': ['expression'],
   }
 
 def array_type(typ):
@@ -149,3 +162,27 @@ def unarray_type(typ):
   if is_array_type(typ):
     return typ[:-2]
   return 'unknown'
+
+def should_have_type(e):
+  return (
+    e.get('Statement') in ('Procedure', 'Variable')
+    or e.get('Expression') in ('Literal',)
+  )
+
+def finalize(statements):
+  def filter(s):
+    sp = { k: v for k, v in s.items() if not k in ('type', '_children') }
+    if should_have_type(s):
+      typ = s.get('type', 'unknown')
+      if is_array_type(typ):
+        sp['type'] = unarray_type(typ)
+        sp['array'] = True
+      else:
+        sp['type'] = typ
+        sp['array'] = False
+    for c in s.get('_children', []):
+      sp[c] = finalize(s[c])
+    return sp
+  if type(statements) == list:
+    return [filter(s) for s in statements]
+  return filter(statements)

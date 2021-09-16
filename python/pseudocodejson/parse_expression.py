@@ -67,7 +67,21 @@ def parse_expression(state, expr):
     else:
       u.unsupported_error(expr.func, "call of '{}'".format(func_type))
 
-  elif expr_type == 'NameConstant':
+  elif expr_type == 'Constant':
+    if expr.value is None:
+      return p.literal_expression('unknown', None)
+    elif type(expr.value) == bool:
+      return p.literal_expression('boolean', expr.value)
+    elif type(expr.value) == int:
+      return p.literal_expression('int', expr.value)
+    elif type(expr.value) == float:
+      return p.literal_expression('double', expr.value)
+    elif type(expr.value) == str:
+      return p.literal_expression('string', expr.value)
+    else:
+      u.unsupported_error(expr, "constant '{}'".format(expr.value))
+
+  elif expr_type == 'NameConstant': # deprecated
     if expr.value is None:
       return p.literal_expression('unknown', None)
     if type(expr.value) == bool:
@@ -75,12 +89,12 @@ def parse_expression(state, expr):
     else:
       u.unsupported_error(expr, "literal '{}'".format(expr.value))
 
-  elif expr_type == 'Num':
+  elif expr_type == 'Num': # deprecated
     if type(expr.n) == int:
       return p.literal_expression('int', expr.n)
     return p.literal_expression('double', expr.n)
 
-  elif expr_type == 'Str':
+  elif expr_type == 'Str': # deprecated
     return p.literal_expression('string', expr.s)
 
   elif expr_type == 'BinOp':
@@ -117,21 +131,25 @@ def parse_expression(state, expr):
     args = [parse_expression(state, e) for e in expr.comparators]
     return build_compare_tree(expr, left, expr.ops, args)
 
+  elif expr_type == 'IfExp':
+    pass
+    # TODO implement
+
   elif expr_type == 'Subscript':
     u.require_type(expr.value, 'Name')
     value = parse_expression(state, expr.value)
     sub_type = u.node_type(expr.slice)
-    if sub_type == 'Index':
-      index = parse_expression(state, expr.slice.value)
-      return p.array_element_expression(value, index, p.unarray_type(value['type']))
-    elif sub_type == 'Slice':
+    if sub_type == 'Slice':
       lower = parse_expression(state, expr.slice.lower) if expr.slice.lower else None
       upper = parse_expression(state, expr.slice.upper) if expr.slice.upper else None
       step = parse_expression(state, expr.slice.step) if expr.slice.step else None
       return p.call_builtin_expression('slice', value['type'], [lower, upper, step])
-    u.unsupported_error(expr, "'{}' as subscript".format(sub_type))
+    else:
+      index = parse_expression(state, expr.slice.value if sub_type == 'Index' else expr.slice)
+      return p.array_element_expression(value, index, p.unarray_type(value['type']))
 
   elif expr_type in ('List', 'Tuple'):
+    # TODO option to prevent, else allocate and populate
     args = [parse_expression(state, e) for e in expr.elts]
     typ = u.common_type(expr, (a['type'] for a in args), 'multiple types in an array')
     return p.literal_expression(p.array_type(typ), args)

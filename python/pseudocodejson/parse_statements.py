@@ -57,7 +57,7 @@ def parse_statements(state, stmt):
 
     elif stmt_type == 'While':
       if len(s.orelse) > 0:
-        u.unsupported_error(s, "else-block in 'While'")
+        u.unsupported_error(s, "'Else' in 'While'")
       cond = parse_expression(state, s.test)
       body, typ = parse_statements(state, s.body)
       json.append(p.loop_statement(cond, body))
