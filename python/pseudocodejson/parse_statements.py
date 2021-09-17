@@ -76,6 +76,10 @@ def parse_statements(state, stmt):
         begin = args[0] if len(args) > 1 else p.literal_expression('int', 0)
         end = args[1 if len(args) > 1 else 0]
         step = args[2] if len(args) > 2 else p.literal_expression('int', 1)
+        step_op = 'add'
+        if step['Expression'] == 'Literal' and step['value'] < 0:
+          step_op = 'sub'
+          step['value'] = abs(step['value'])
         body, typ = parse_statements(state, s.body)
         json.append(p.assignment_statement(uuid, begin))
         json.append(p.loop_statement(
@@ -83,12 +87,7 @@ def parse_statements(state, stmt):
           body + [
             p.assignment_statement(
               uuid,
-              p.binary_operation(
-                'add' if step >= 0 else 'sub',
-                p.variable_expression(uuid, 'int'),
-                abs(step),
-                'int'
-              )
+              p.binary_operation(step_op, p.variable_expression(uuid, 'int'), step, 'int')
             )
           ]
         ))
