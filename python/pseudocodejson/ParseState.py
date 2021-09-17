@@ -3,12 +3,14 @@ from . import presentation as p
 
 class ParseState:
 
-  def __init__(self, typed_signatures=None):
+  def __init__(self, typed_signatures=None, exclude_procedures=None, fail_nodes=None):
     self.constants = []
     self.procedures = []
     self.namestack = [{}]
     self.variable_typing = {}
     self.typed_signatures = typed_signatures or {}
+    self.exclude_procedures = exclude_procedures or []
+    self.fail_nodes = fail_nodes or []
 
   def add_procedure(self, id, typ=None):
     if typ is None:

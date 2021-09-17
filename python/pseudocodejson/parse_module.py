@@ -3,14 +3,10 @@ from .ParseState import ParseState
 from . import presentation as p
 from . import parse_utils as u
 
-# TODO
-# 1. option to exclude procedures
-# 2. option to fail lists
-
-def parse_module(module, typed_signatures=None):
+def parse_module(module, typed_signatures=None, exlude_procedures=None, fail_nodes=None):
   u.require_type(module, 'Module')
 
-  state = ParseState(typed_signatures)
+  state = ParseState(typed_signatures, exlude_procedures, fail_nodes)
   module_stmt, _ = parse_statements(state, module.body)
   if (len(module_stmt) > 0):
     default = state.add_procedure(None, 'void')

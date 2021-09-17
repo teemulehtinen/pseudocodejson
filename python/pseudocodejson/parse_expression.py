@@ -29,7 +29,10 @@ def parse_expression(state, expr):
   u.require_expr(expr)
   expr_type = u.node_type(expr)
 
-  if expr_type == 'Name':
+  if expr_type in state.fail_nodes:
+    u.unsupported_error(expr)
+
+  elif expr_type == 'Name':
     hit = state.find_variable_id(expr, expr.id, u.node_type(expr.ctx) != 'Store')
     if hit:
       return p.variable_expression(hit['uuid'], hit['type'])
@@ -51,6 +54,7 @@ def parse_expression(state, expr):
         if p.is_array_type(val['type']) and expr.func.attr == 'append':
           return p.call_builtin_expression('array_grow', val['type'], [val['variable']] + args)
         u.unsupported_error(expr.func, "method call '{}.{}'".format(expr.func.value.id, expr.func.attr))
+      # TODO math.floor etc support?
     elif func_type == 'Name':
       hit = state.find_function_id(expr.func, expr.func.id, True)
       if hit:
@@ -60,6 +64,9 @@ def parse_expression(state, expr):
           if len(expr.args) != 1:
             u.parse_error(expr, 'Expected exactly one argument')
           return p.array_length_expression(args[0])
+        # TODO elif expr.func.id == 'int'
+        # TODO elif expr.func.id == 'round'
+        # TODO elif expr.func.id == 'abs'
         else:
           # TODO determine possible types for builtins
           return p.call_builtin_expression(expr.func.id, 'unknown', args)
@@ -131,9 +138,7 @@ def parse_expression(state, expr):
     args = [parse_expression(state, e) for e in expr.comparators]
     return build_compare_tree(expr, left, expr.ops, args)
 
-  elif expr_type == 'IfExp':
-    pass
-    # TODO implement
+  # TODO elif expr_type == 'IfExp':
 
   elif expr_type == 'Subscript':
     u.require_type(expr.value, 'Name')
@@ -149,7 +154,7 @@ def parse_expression(state, expr):
       return p.array_element_expression(value, index, p.unarray_type(value['type']))
 
   elif expr_type in ('List', 'Tuple'):
-    # TODO option to prevent, else allocate and populate
+    # TODO should allocate and populate
     args = [parse_expression(state, e) for e in expr.elts]
     typ = u.common_type(expr, (a['type'] for a in args), 'multiple types in an array')
     return p.literal_expression(p.array_type(typ), args)

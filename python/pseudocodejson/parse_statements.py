@@ -20,6 +20,9 @@ def parse_statements(state, stmt):
         s.args,
         s.body
       ])
+    
+    elif None in state.exclude_procedures and len(state.namestack) == 1:
+      continue
 
     elif stmt_type == 'Return':
       value = parse_expression(state, s.value) if s.value else None
@@ -80,7 +83,12 @@ def parse_statements(state, stmt):
           body + [
             p.assignment_statement(
               uuid,
-              p.binary_operation('add', p.variable_expression(uuid, 'int'), step, 'int')
+              p.binary_operation(
+                'add' if step >= 0 else 'sub',
+                p.variable_expression(uuid, 'int'),
+                abs(step),
+                'int'
+              )
             )
           ]
         ))
@@ -110,13 +118,14 @@ def parse_statements(state, stmt):
   
   # Python naming is single-pass when function bodies are parsed after parent.
   for fdef, fargs, fstmt in function_defs:
-    state.push_names()
-    fdef['parameters'] = parse_args(state, fdef['id'], fargs)
-    body, typ = parse_statements(state, fstmt)
-    fdef['body'].extend(body)
-    if fdef['type'] == 'unknown':
-      fdef['type'] = typ
-    state.pop_names()
+    if not fdef['id'] in state.exclude_procedures:
+      state.push_names()
+      fdef['parameters'] = parse_args(state, fdef['id'], fargs)
+      body, typ = parse_statements(state, fstmt)
+      fdef['body'].extend(body)
+      if fdef['type'] == 'unknown':
+        fdef['type'] = typ
+      state.pop_names()
 
   if return_types:
     return json, u.common_type(stmt, return_types, 'multiple return types for a function')
