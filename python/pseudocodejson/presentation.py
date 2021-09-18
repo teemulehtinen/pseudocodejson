@@ -1,11 +1,12 @@
-def procedure_declaration(uuid, id, type):
+def procedure_declaration(uuid, id, type, called):
   return {
     'Statement': 'Procedure',
     'uuid': uuid,
     'id': id,
     'type': type,
-    'parameters': [],
-    'body': [],
+    'parameters': None,
+    'body': None,
+    '_called': called,
     '_children': ['parameters', 'body'],
   }
 
@@ -133,6 +134,13 @@ def literal_expression(type, value):
     'value': value,
   }
 
+def null_expression():
+  return {
+    'Expression': 'Literal',
+    'type': 'unknown',
+    'value': None,
+  }
+
 def binary_operation(op, left, right, typ):
   return {
     'Expression': 'Binary Op',
@@ -169,9 +177,12 @@ def should_have_type(e):
     or e.get('Expression') in ('Literal',)
   )
 
+def should_strip(e):
+  return e.get('Statement') == 'Procedure' and e['body'] is None
+
 def finalize(statements):
   def filter(s):
-    sp = { k: v for k, v in s.items() if not k in ('type', '_children') }
+    sp = { k: v for k, v in s.items() if not k in ('type', '_called', '_children') }
     if should_have_type(s):
       typ = s.get('type', 'unknown')
       if is_array_type(typ):
@@ -181,8 +192,9 @@ def finalize(statements):
         sp['type'] = typ
         sp['array'] = False
     for c in s.get('_children', []):
-      sp[c] = finalize(s[c])
+      if c in s and not s[c] is None:
+        sp[c] = finalize(s[c])
     return sp
   if type(statements) == list:
-    return [filter(s) for s in statements]
+    return [filter(s) for s in statements if not should_strip(s)]
   return filter(statements)

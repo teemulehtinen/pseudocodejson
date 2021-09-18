@@ -5,7 +5,7 @@ from .parse_expression import parse_expression, OP_TABLE
 IGNORE_NODES = ['Pass', 'Delete', 'Import', 'ImportFrom', 'Assert', 'Raise']
 IGNORE_BUILTINS = ['print']
 
-def parse_statements(state, stmt):
+def parse_statements(state, stmt, exclude_others=False, module_root=False):
   json = []
   return_types = []
   function_defs = []
@@ -14,14 +14,15 @@ def parse_statements(state, stmt):
     u.require_stmt(s)
     stmt_type = u.node_type(s)
 
+    # Python naming is single-pass when function bodies are parsed after the current level.
     if stmt_type == 'FunctionDef':
       function_defs.append([
-        state.add_procedure(s.name),
+        state.add_procedure(module_root, s.name),
         s.args,
         s.body
       ])
-    
-    elif None in state.exclude_procedures and len(state.namestack) == 1:
+  
+    elif module_root and exclude_others:
       continue
 
     elif stmt_type == 'Return':
@@ -53,8 +54,8 @@ def parse_statements(state, stmt):
 
     elif stmt_type == 'If':
       cond = parse_expression(state, s.test)
-      if_body, if_typ = parse_statements(state, s.body)
-      else_body, else_typ = parse_statements(state, s.orelse)
+      if_body, if_typ = parse_statements(state, s.body, exclude_others)
+      else_body, else_typ = parse_statements(state, s.orelse, exclude_others)
       json.append(p.selection_statement(cond, if_body, else_body))
       return_types.extend([if_typ, else_typ])
 
@@ -62,7 +63,7 @@ def parse_statements(state, stmt):
       if len(s.orelse) > 0:
         u.unsupported_error(s, "'Else' in 'While'")
       cond = parse_expression(state, s.test)
-      body, typ = parse_statements(state, s.body)
+      body, typ = parse_statements(state, s.body, exclude_others)
       json.append(p.loop_statement(cond, body))
       return_types.append(typ)
 
@@ -80,7 +81,7 @@ def parse_statements(state, stmt):
         if step['Expression'] == 'Literal' and step['value'] < 0:
           step_op = 'sub'
           step['value'] = abs(step['value'])
-        body, typ = parse_statements(state, s.body)
+        body, typ = parse_statements(state, s.body, exclude_others)
         json.append(p.assignment_statement(uuid, begin))
         json.append(p.loop_statement(
           p.binary_operation('different', p.variable_expression(uuid, 'int'), end, 'boolean'),
@@ -114,21 +115,25 @@ def parse_statements(state, stmt):
 
     elif not stmt_type in IGNORE_NODES:
       u.unsupported_error(s)
-  
-  # Python naming is single-pass when function bodies are parsed after parent.
-  for fdef, fargs, fstmt in function_defs:
-    if not fdef['id'] in state.exclude_procedures:
-      state.push_names()
-      fdef['parameters'] = parse_args(state, fdef['id'], fargs)
-      body, typ = parse_statements(state, fstmt)
-      fdef['body'].extend(body)
-      if fdef['type'] == 'unknown':
-        fdef['type'] = typ
-      state.pop_names()
 
-  if return_types:
-    return json, u.common_type(stmt, return_types, 'multiple return types for a function')
-  return json, 'void'
+  if exclude_others:
+    uuids = state.get_required_to_parse()
+  else:
+    uuids = [tr[0]['uuid'] for tr in function_defs]
+  while uuids:
+    for fdef, fargs, fstmt in function_defs:
+      if fdef['uuid'] in uuids:
+        state.push_names()
+        fdef['parameters'] = parse_args(state, fdef['id'], fargs)
+        body, typ = parse_statements(state, fstmt, exclude_others)
+        fdef['body'] = body
+        if fdef['type'] == 'unknown':
+          fdef['type'] = typ
+        state.pop_names()
+    uuids = state.get_required_to_parse()
+
+  typ = u.common_type(stmt, return_types, 'multiple return types for a function') if return_types else 'void'
+  return json, typ
 
 # stmt = FunctionDef(identifier name, arguments args, stmt* body, expr* decorator_list, expr? returns, string? type_comment)
 #   | AsyncFunctionDef(identifier name, arguments args, stmt* body, expr* decorator_list, expr? returns, string? type_comment)

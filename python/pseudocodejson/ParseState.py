@@ -3,25 +3,23 @@ from . import presentation as p
 
 class ParseState:
 
-  def __init__(self, typed_signatures=None, exclude_procedures=None, fail_nodes=None):
+  def __init__(self, typed_signatures=None):
     self.constants = []
     self.procedures = []
     self.namestack = [{}]
     self.variable_typing = {}
     self.typed_signatures = typed_signatures or {}
-    self.exclude_procedures = exclude_procedures or []
-    self.fail_nodes = fail_nodes or []
 
-  def add_procedure(self, id, typ=None):
-    if typ is None:
-      if id in self.typed_signatures:
-        typ = self.typed_signatures[id]['return']
-      else:
-        typ = 'unknown'
-    procedure = p.procedure_declaration(u.uuid(), id, typ)
+  def add_procedure(self, module_root, id, typ=None):
+    if module_root and id in self.typed_signatures:
+      styp = self.typed_signatures[id]['return']
+      called = True
+    else:
+      styp = 'unknown'
+      called = False
+    procedure = p.procedure_declaration(u.uuid(), id, typ or styp, called)
     self.procedures.append(procedure)
-    if id != None:
-      self.namestack[-1][id] = procedure
+    self.namestack[-1][id] = procedure
     return procedure
 
   def push_names(self):
@@ -62,8 +60,10 @@ class ParseState:
   
   def find_function_id(self, node, id, up=False):
     declaration = self.find_id(id, up)
-    if declaration and not 'body' in declaration:
-      u.parse_error(node, "Expected function id, got variable id '{}".format(id))
+    if declaration:
+      declaration['_called'] = True
+      if not 'body' in declaration:
+        u.parse_error(node, "Expected function id, got variable id '{}".format(id))
     return declaration
 
   def set_variable_type(self, node, uuid, typ):
@@ -74,3 +74,9 @@ class ParseState:
   
   def get_variable_type(self, uuid):
     return self.variable_typing.get(uuid, 'unknown')
+
+  def get_required_to_parse(self):
+    return [
+      f['uuid'] for f in self.namestack[-1].values()
+      if 'body' in f and f['body'] is None and f['_called']
+    ]

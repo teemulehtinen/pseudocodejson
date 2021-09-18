@@ -29,10 +29,7 @@ def parse_expression(state, expr):
   u.require_expr(expr)
   expr_type = u.node_type(expr)
 
-  if expr_type in state.fail_nodes:
-    u.unsupported_error(expr)
-
-  elif expr_type == 'Name':
+  if expr_type == 'Name':
     hit = state.find_variable_id(expr, expr.id, u.node_type(expr.ctx) != 'Store')
     if hit:
       return p.variable_expression(hit['uuid'], hit['type'])
@@ -46,10 +43,7 @@ def parse_expression(state, expr):
     if func_type == 'Attribute':
       val = parse_expression(state, expr.func.value)
       if val['Expression'] == 'Literal':
-        if val['type'] == 'string' and expr.func.attr == 'format':
-          return p.call_builtin_expression('string_format', 'string', [val['value']] + args)
-        else:
-          u.unsupported_error(expr.func, "method call '{}.{}'".format(val['type'], expr.func.attr))
+        u.unsupported_error(expr.func, "method call '{}.{}'".format(val['type'], expr.func.attr))
       elif val['Expression'] == 'Variable':
         if p.is_array_type(val['type']) and expr.func.attr == 'append':
           return p.call_builtin_expression('array_grow', val['type'], [val['variable']] + args)
@@ -76,7 +70,7 @@ def parse_expression(state, expr):
 
   elif expr_type == 'Constant':
     if expr.value is None:
-      return p.literal_expression('unknown', None)
+      return p.null_expression()
     elif type(expr.value) == bool:
       return p.literal_expression('boolean', expr.value)
     elif type(expr.value) == int:
@@ -90,7 +84,7 @@ def parse_expression(state, expr):
 
   elif expr_type == 'NameConstant': # deprecated
     if expr.value is None:
-      return p.literal_expression('unknown', None)
+      return p.null_expression()
     if type(expr.value) == bool:
       return p.literal_expression('boolean', expr.value)
     else:
@@ -145,19 +139,14 @@ def parse_expression(state, expr):
     value = parse_expression(state, expr.value)
     sub_type = u.node_type(expr.slice)
     if sub_type == 'Slice':
-      lower = parse_expression(state, expr.slice.lower) if expr.slice.lower else None
-      upper = parse_expression(state, expr.slice.upper) if expr.slice.upper else None
-      step = parse_expression(state, expr.slice.step) if expr.slice.step else None
-      return p.call_builtin_expression('slice', value['type'], [lower, upper, step])
+      u.unsupported_error(expr, 'creation of a slice from an iterable')
     else:
       index = parse_expression(state, expr.slice.value if sub_type == 'Index' else expr.slice)
       return p.array_element_expression(value, index, p.unarray_type(value['type']))
 
   elif expr_type in ('List', 'Tuple'):
     # TODO should allocate and populate
-    args = [parse_expression(state, e) for e in expr.elts]
-    typ = u.common_type(expr, (a['type'] for a in args), 'multiple types in an array')
-    return p.literal_expression(p.array_type(typ), args)
+    u.unsupported_error(expr)
 
   elif not expr_type in IGNORE_NODES:
     raise u.unsupported_error(expr)

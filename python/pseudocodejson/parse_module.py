@@ -3,14 +3,15 @@ from .ParseState import ParseState
 from . import presentation as p
 from . import parse_utils as u
 
-def parse_module(module, typed_signatures=None, exlude_procedures=None, fail_nodes=None):
+def parse_module(module, typed_signatures=None, exclude_others=False):
   u.require_type(module, 'Module')
 
-  state = ParseState(typed_signatures, exlude_procedures, fail_nodes)
-  module_stmt, _ = parse_statements(state, module.body)
+  state = ParseState(typed_signatures)
+  module_stmt, _ = parse_statements(state, module.body, exclude_others, True)
   if (len(module_stmt) > 0):
-    default = state.add_procedure(None, 'void')
-    default['body'].extend(module_stmt)
+    default = state.add_procedure(True, None, 'void')
+    default['parameters'] = []
+    default['body'] = module_stmt
 
   return {
     'type': 'Module',

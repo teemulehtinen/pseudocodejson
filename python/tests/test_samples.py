@@ -23,7 +23,8 @@ def bubblesort(a):
     changes = False
     for i in range(1, len(a)):
       if a[i] < a[i - 1]:
-        a[i], a[i - 1] = a[i - 1], a[i]
+        a[i] = a[i - 1]
+        a[i - 1] = a[i]
         changes = True
   return a
 """
@@ -49,5 +50,18 @@ a = 3
 b = a // 2
 print("blaa")
 """
+    )
+    print(json.dumps(pseudo, indent=2))
+
+  def test_exclude(self):
+    pseudo = src2pseudo(
+"""
+def a():
+  return 1
+def b():
+  return c()
+def c():
+  return 3
+""", { 'b': { 'return': 'int', 'arguments': [] } }, True
     )
     print(json.dumps(pseudo, indent=2))
