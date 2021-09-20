@@ -78,7 +78,10 @@ def parse_statements(state, stmt, exclude_others=False, module_root=False):
         end = args[1 if len(args) > 1 else 0]
         step = args[2] if len(args) > 2 else p.literal_expression('int', 1)
         step_op = 'add'
-        if step['Expression'] == 'Literal' and step['value'] < 0:
+        if step['Expression'] == 'Unary Op' and step['op'] == 'minus':
+          step_op = 'sub'
+          step = step['expression']
+        elif step['Expression'] == 'Literal' and step['value'] < 0:
           step_op = 'sub'
           step['value'] = abs(step['value'])
         body, typ = parse_statements(state, s.body, exclude_others)
