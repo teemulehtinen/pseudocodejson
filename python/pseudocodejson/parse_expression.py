@@ -54,7 +54,7 @@ def parse_expression(state, expr, builtins = None):
       elif val['Expression'] == 'Variable':
         u.unsupported_error(expr.func, "method call '{}.{}'".format(expr.func.value.id, expr.func.attr))
     elif func_type == 'Name':
-      hit = state.find_function_id(expr.func, expr.func.id, True)
+      hit = state.find_function_id(expr.func, expr.func.id, args)
       if hit:
         return p.call_expression(hit['uuid'], hit['type'], args)
       if expr.func.id in BUILT_IN_FUNCTIONS:

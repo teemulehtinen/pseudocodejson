@@ -32,7 +32,7 @@ class ParseState:
     if typ is None:
       if func_id and func_id in self.typed_signatures:
         arg_def = self.typed_signatures[func_id]['arguments']
-        if func_arg_i < len(arg_def) and arg_def[func_arg_i][0] == id:
+        if func_arg_i < len(arg_def) and arg_def[func_arg_i][0] in (None, id):
           typ = arg_def[func_arg_i][1]
         else:
           typ = 'unknown'
@@ -58,12 +58,17 @@ class ParseState:
       u.parse_error(node, "Expected variable id, got function id '{}'".format(id))
     return declaration
   
-  def find_function_id(self, node, id, up=False):
-    declaration = self.find_id(id, up)
+  def find_function_id(self, node, id, args):
+    declaration = self.find_id(id, True)
     if declaration:
       declaration['_called'] = True
       if not 'body' in declaration:
         u.parse_error(node, "Expected function id, got variable id '{}".format(id))
+      if not id in self.typed_signatures:
+        self.typed_signatures[id] = {
+          'return': 'unknown',
+          'arguments': [(None, a.get('type', 'unknown')) for a in args],
+        }
     return declaration
 
   def set_variable_type(self, node, uuid, typ):
