@@ -15,8 +15,7 @@ BUILT_IN_FUNCTIONS = [
 ]
 SUPPORTED_BUILT_IN_FUNCTIONS = {
   # len is transpiled to array length expression instead of call
-  'abs': 'int', 'bool': 'bool', 'float': 'float', 'int': 'int', 'pow': 'int',
-  'round': 'int', 'str': 'string'
+  'abs': 'int', 'int': 'int', 'round': 'int'
 }
 BUILT_IN_VARIABLES = {
   '__name__': 'string', 'int': 'type', 'float': 'type', 'str': 'type'
