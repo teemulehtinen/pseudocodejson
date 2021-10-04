@@ -13,6 +13,11 @@ BUILT_IN_FUNCTIONS = [
   'sorted', 'staticmethod', 'str', 'sum', 'super', 'tuple', 'type', 'vars', 'zip',
   '__import__', 'NotImplementedError'
 ]
+SUPPORTED_BUILT_IN_FUNCTIONS = {
+  # len is transpiled to array length expression instead of call
+  'abs': 'int', 'bool': 'bool', 'float': 'float', 'int': 'int', 'pow': 'int',
+  'round': 'int', 'str': 'string'
+}
 BUILT_IN_VARIABLES = {
   '__name__': 'string', 'int': 'type', 'float': 'type', 'str': 'type'
 }
@@ -25,7 +30,7 @@ OP_TABLE = {
 }
 
 
-def parse_expression(state, expr):
+def parse_expression(state, expr, builtins = None):
   u.require_expr(expr)
   expr_type = u.node_type(expr)
 
@@ -34,7 +39,9 @@ def parse_expression(state, expr):
     if hit:
       return p.variable_expression(hit['uuid'], hit['type'])
     if expr.id in BUILT_IN_VARIABLES:
-      return p.builtin_variable_expression(expr.id, BUILT_IN_VARIABLES[expr.id])
+      if builtins and expr.id in builtins:
+        return p.builtin_variable_expression(expr.id, BUILT_IN_VARIABLES[expr.id])
+      u.unsupported_error(expr, f"builtin value '{expr.id}'")
     raise u.MissingNameError(expr.id)
 
   elif expr_type == 'Call':
@@ -45,25 +52,25 @@ def parse_expression(state, expr):
       if val['Expression'] == 'Literal':
         u.unsupported_error(expr.func, "method call '{}.{}'".format(val['type'], expr.func.attr))
       elif val['Expression'] == 'Variable':
-        if p.is_array_type(val['type']) and expr.func.attr == 'append':
-          return p.call_builtin_expression('array_grow', val['type'], [val['variable']] + args)
         u.unsupported_error(expr.func, "method call '{}.{}'".format(expr.func.value.id, expr.func.attr))
-      # TODO math.floor etc support?
     elif func_type == 'Name':
       hit = state.find_function_id(expr.func, expr.func.id, True)
       if hit:
         return p.call_expression(hit['uuid'], hit['type'], args)
-      elif expr.func.id in BUILT_IN_FUNCTIONS:
+      if expr.func.id in BUILT_IN_FUNCTIONS:
         if expr.func.id == 'len':
           if len(expr.args) != 1:
             u.parse_error(expr, 'Expected exactly one argument')
           return p.array_length_expression(args[0])
-        # TODO elif expr.func.id == 'int'
-        # TODO elif expr.func.id == 'round'
-        # TODO elif expr.func.id == 'abs'
-        else:
-          # TODO determine possible types for builtins
+        if expr.func.id in SUPPORTED_BUILT_IN_FUNCTIONS:
+          return p.call_supported_builtin_expression(
+            expr.func.id,
+            SUPPORTED_BUILT_IN_FUNCTIONS[expr.func.id],
+            args
+          )
+        if builtins and expr.func.id in builtins:
           return p.call_builtin_expression(expr.func.id, 'unknown', args)
+        u.unsupported_error(expr.func, f"builtin function '{expr.func.id}'")
       raise u.MissingNameError(expr.func.id)
     else:
       u.unsupported_error(expr.func, "call of '{}'".format(func_type))

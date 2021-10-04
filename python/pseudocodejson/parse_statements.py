@@ -2,7 +2,7 @@ from . import parse_utils as u
 from . import presentation as p
 from .parse_expression import parse_expression, OP_TABLE
 
-IGNORE_NODES = ['Pass', 'Delete', 'Import', 'ImportFrom', 'Assert', 'Raise']
+IGNORE_NODES = ['Pass', 'Delete', 'Import', 'ImportFrom', 'Assert']
 IGNORE_BUILTINS = ['print']
 
 def parse_statements(state, stmt, exclude_others=False, module_root=False):
@@ -70,7 +70,7 @@ def parse_statements(state, stmt, exclude_others=False, module_root=False):
     elif stmt_type == 'For':
       if len(s.orelse) > 0:
         u.unsupported_error(s, "'Else' in 'For'")
-      iter = parse_expression(state, s.iter)
+      iter = parse_expression(state, s.iter, ['range'])
       if iter['Expression'] == 'Call' and iter['builtin'] == 'range':
         uuid = parse_or_create_target_uuid(state, json, s.target, 'int')
         args = iter['arguments']
@@ -96,7 +96,7 @@ def parse_statements(state, stmt, exclude_others=False, module_root=False):
           ]
         ))
       else:
-        u.unsupported_error(s, "for iterable (only 'range' is supported)")
+        u.unsupported_error(s, f"for iterable '{iter['Expression']}' (only 'range' is supported)")
 
     elif stmt_type == 'Break':
       json.append(p.break_statement())
@@ -105,12 +105,10 @@ def parse_statements(state, stmt, exclude_others=False, module_root=False):
       json.append(p.continue_statement())
 
     elif stmt_type == 'Expr':
-      e = parse_expression(state, s.value)
+      e = parse_expression(state, s.value, IGNORE_BUILTINS)
       if e['Expression'] == 'Call':
         if 'call' in e:
           json.append(e['call'])
-        elif not e['builtin'] in IGNORE_BUILTINS:
-          u.unsupported_error(s, "builtin function '{}'".format(e['builtin']))
       elif e['Expression'] == 'Literal' and e['type'] == 'string':
         pass # Skip comment
       else:

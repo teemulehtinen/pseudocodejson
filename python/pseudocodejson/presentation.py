@@ -100,6 +100,9 @@ def call_expression(uuid, typ, args):
     '_children': ['call'],
   }
 
+def call_supported_builtin_expression(id, typ, args):
+  return call_expression(f'builtin:{id}', typ, args)
+
 def call_builtin_expression(id, typ, args):
   return {
     'Expression': 'Call',
