@@ -57,7 +57,7 @@ def parse_statements(state, stmt, exclude_others=False, module_root=False):
       if_body, if_typ = parse_statements(state, s.body, exclude_others)
       else_body, else_typ = parse_statements(state, s.orelse, exclude_others)
       json.append(p.selection_statement(cond, if_body, else_body))
-      return_types.extend([if_typ, else_typ])
+      return_types.extend(t for t in [if_typ, else_typ] if t != 'void')
 
     elif stmt_type == 'While':
       if len(s.orelse) > 0:
@@ -65,7 +65,7 @@ def parse_statements(state, stmt, exclude_others=False, module_root=False):
       cond = parse_expression(state, s.test)
       body, typ = parse_statements(state, s.body, exclude_others)
       json.append(p.loop_statement(cond, body))
-      return_types.append(typ)
+      return_types.extend(t for t in [typ] if t != 'void')
 
     elif stmt_type == 'For':
       if len(s.orelse) > 0:

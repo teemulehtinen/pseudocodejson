@@ -9,7 +9,7 @@ def parse_module(module, typed_signatures=None, exclude_others=False):
   state = ParseState(typed_signatures)
   module_stmt, module_typ = parse_statements(state, module.body, exclude_others, True)
   if (len(module_stmt) > 0):
-    default = state.add_procedure(True, None, None, None, module_typ)
+    default = state.add_procedure(True, None, module_typ)
     default['parameters'] = []
     default['body'] = module_stmt
 
